@@ -1,0 +1,17 @@
+ls
+vim test0.sh
+vim test[2-9].sh
+vim test1[0-2].sh
+cd ../
+vim test12.c
+cd ../
+cd ../
+git add *.c *.sh
+git status
+git commit -m 'update tests'
+git push
+cd ..
+cat test12.out
+cd ..
+ls
+cd ../

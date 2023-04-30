@@ -1,0 +1,217 @@
+git checkout master
+git fetch
+dir
+git remote -v
+dir
+vim grade.sh
+cd tests
+dir
+cp ../dccthread.c .
+./grade.sh
+dir
+cat test12.err
+dir
+tests/test10.sh
+tests/test0.sh
+tests/test10.sh
+dir
+cat gcc.log
+vim tests/test10.sh
+tests/test11.sh
+tests/test10.sh
+tests/test12.sh
+dir
+cat test12.err
+cat test12.out
+cat tests/test12.out
+./grade.sh
+dir
+cat gcc.log
+vim tests/test9.c
+rm gcc.log
+./grade.sh
+dir
+cat gcc.log
+vim dccthread.h
+rm gcc.log
+./grade.sh
+dir
+vim gcc.log
+tests/test0.sh
+tests/test6.sh
+cat gcc.log
+vim tests/test6.
+vim tests/test6.c
+vim tests/test6.sh
+tests/test6.sh
+dir
+cat gcc.log
+rm gcc.log
+tests/test6.sh
+dir
+./grade.sh
+dir
+vim gcc.log
+rm gcc.log
+./grade.sh
+dir
+vimdiff test12.out tests/test12.out
+cd tests
+vim dccthread.c
+dir
+rm dccthread.c
+make clean
+rm gcc.log test12*
+dir
+git status
+cd tests
+git status
+cd tests
+dir
+cd ../
+dir
+mkdir submissions
+cd submissions
+dir
+dir submissions
+cp submissions/Breno\ Chaves\ Gabrich_52168_assignsubmission_file_dccthread.c dccthread.c
+dir
+./grade.sh
+vim dccthread.c
+dir
+cp submissions/Bruno\ Conde\ Kind_52178_assignsubmission_file_dccthread.c dccthread.c
+./grade.sh
+vim dccthread.
+vim dccthread.c
+cp submissions/Cassios\ Kley\ Martins\ Marques_52176_assignsubmission_file_dccthread.c dccthread.c
+dir
+./grade.sh
+vim dccthread.c
+vim dccthread.h
+rm gcc.log
+tests/test0.sh
+cat gcc.log
+vim dccthread.c
+rm gcc.log
+tests/test0.sh
+./grade.sh
+dir
+cat test12.out
+vim dccthread.c
+dir
+cp submissions/Daniel\ Reis\ Souza_52192_assignsubmission_file_dccthread.c dccthread.c
+dir
+./grade.sh
+vim dccthread.c
+cp submissions/Davi\ Faria\ de\ Assis\ Beltrao_52171_assignsubmission_file_dccthread.c dccthread.c
+dir
+./grade.sh 
+vim dccthread.
+vim dccthread.c
+cp submissions/Gleider\ Ribeiro\ Costa_52187_assignsubmission_file_dccthread.c dccthread.c
+./grade.sh
+dir
+cp submissions/Gustavo\ Maia\ Ferreira_52174_assignsubmission_file_dccthread.c dccthread.c
+./grade.sh
+dir
+cp submissions/Jessica\ Cristina\ Carneiro_52172_assignsubmission_file_dccthread.c dccthread.c
+./grade.sh
+dir
+vim test9.
+vim test9.out
+vim tests/test9.out
+./grade.sh
+vim dccthread.c
+dir
+cp submissions/Jo+$'\372'o\ Francisco\ Barreto\ da\ Silva\ Martins_52184_assignsubmission_file_dccthread.c dccthread.c
+dir
+./grade.sh
+vim 
+cat test9.out
+cp submissions/Markos\ Viggiato\ de\ Almeida_52182_assignsubmission_file_dccthread.c dccthread.c
+./grade.sh
+vim dccthread.c
+./grade.sh
+rm gcc.log
+tests/test0.sh
+vim gcc.log
+dir
+vim dccthread.c
+tests/test0.sh
+./grade.sh
+vim dccthread.c submissions/Cassios\ Kley\ Martins\ Marques_52176_assignsubmission_file_dccthread.c
+cp submissions/Matheus\ Alves\ Diniz_52183_assignsubmission_file_dccthread.c dccthread.c
+./grade.sh
+./grade.sh
+tests/test0.sh
+tests/test1.sh
+cat gcc.log
+ls
+vim dccthread.c
+tests/test1.sh
+cat gcc.log
+tests/test0.sh
+tests/test1
+tests/test1.sh
+./grade.sh
+top
+vim dccthread.h
+dir
+vim dccthread.h
+top
+whois 188.227.156.0/22
+sudo aptitude install whois
+whois 188.227.156.0/22
+
+
+telnet route-views.ip.att.net
+telnet route-server.ip.att.net
+git status
+git diff dccthread.h
+git add dccthread.h
+git commit -m 'add missing include'
+git push 
+cd ../
+dir
+git status
+make clean
+rm test10*
+rm dccthread.c gcc.log
+dir
+git status
+cd ../../
+ls
+./grade.sh
+ls
+tests/test0.sh
+cat gcc.log
+man sigemptyset
+ls
+code dccthread.c
+./grade.sh
+ls
+cd tests
+code tests/test12.sh
+tests/test12.sh
+ls
+./tests/test12.sh
+cat gcc.log
+gcc -c dccthread.c
+gcc -c dlist.c
+./tests/test12.sh
+ls
+cat test12.out
+cat test12.err
+cat test12.out
+code dccthread.c
+ls
+ls ../
+rm dccthread.c
+ls
+rm *.out *.err
+rm gcc.log
+rm *.o
+ls
+cd tests
+
+cd ../
