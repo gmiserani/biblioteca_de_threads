@@ -8,7 +8,7 @@
 
 
 typedef struct dccthread{
-    char name[100];
+    char name[DCCTHREAD_MAX_NAME_SIZE];
     ucontext_t *context;
     unsigned int yielded; //0 if not, 1 otherwise
     unsigned int sleeping; //0 if not, 1 otherwise
@@ -27,30 +27,31 @@ void dccthread_init(void (func)(int), int param){
 
 
     while(!dlist_empty(ready_list)){
-        dccthread_t* current_thread = (dccthread_t *) dlist_pop_left(ready_list);
+        dccthread_t* current_thread = (dccthread_t *) dlist_get_index(ready_list, 0);
         swapcontext(&manager,(current_thread->context));
+        dlist_pop_left(ready_list);
     }
+    exit(0);
 }
 
 //function responsible to create the threads and putting them in the ready_list/
 dccthread_t * dccthread_create(const char *name, void (*func)(int ), int param){
-    dccthread_t* new_thread = (dccthread_t*) malloc(sizeof(dccthread_t));
-
+    dccthread_t* new_thread = malloc(sizeof(dccthread_t));
     strcpy(new_thread->name, name);
-
-
+    new_thread->context = malloc(sizeof(ucontext_t));
     getcontext(new_thread->context);
-    new_thread->context->uc_link = &manager;
     dlist_push_right(ready_list, new_thread);
+    new_thread->context->uc_link = &manager;
+    new_thread->context->uc_stack.ss_sp = malloc(THREAD_STACK_SIZE);
+    new_thread->context->uc_stack.ss_size = THREAD_STACK_SIZE;
+    new_thread->context->uc_stack.ss_flags = 0;
     makecontext(new_thread->context, (void*) func, 1, param);
-    //new_thread->context->uc_stack.ss_sp = malloc(sizeof(new_thread->context->uc_stack.ss_sp));
-    //new_thread->context->uc_stack.ss_size = sizeof(new_thread->context->uc_stack.ss_sp);
-    //new_thread->context->uc_stack.ss_flags = 0;
     return new_thread;
 }
 
 void dccthread_yield(void){
     dccthread_t* current_thread = dccthread_self();
+    dlist_push_right(ready_list, current_thread);
     swapcontext(&manager,(current_thread->context));
 }
 
@@ -59,5 +60,6 @@ const char * dccthread_name(dccthread_t *tid){
 }
 
 dccthread_t *dccthread_self(void){
-    return ready_list->head->data;;
+    dccthread_t *nome = dlist_get_index(ready_list, 0);
+    return nome;
 }
