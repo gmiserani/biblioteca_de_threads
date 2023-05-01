@@ -28,16 +28,26 @@ void dccthread_init(void (func)(int), int param){
 
     while(!dlist_empty(ready_list)){
         dccthread_t* current_thread = (dccthread_t *) dlist_get_index(ready_list, 0);
+        if(current_thread->waiting_for != NULL){
+            dlist_pop_left(ready_list);
+            dlist_push_right(ready_list, current_thread);
+        }
         swapcontext(&manager,(current_thread->context));
         dlist_pop_left(ready_list);
+        
+        if(current_thread->waiting_for != NULL){
+            dlist_push_right(ready_list, current_thread);
+        }
     }
     exit(0);
 }
+
 
 //function responsible to create the threads and putting them in the ready_list/
 dccthread_t * dccthread_create(const char *name, void (*func)(int ), int param){
     dccthread_t* new_thread = malloc(sizeof(dccthread_t));
     strcpy(new_thread->name, name);
+    new_thread->waiting_for=NULL;
     new_thread->context = malloc(sizeof(ucontext_t));
     getcontext(new_thread->context);
     dlist_push_right(ready_list, new_thread);
@@ -52,7 +62,7 @@ dccthread_t * dccthread_create(const char *name, void (*func)(int ), int param){
 void dccthread_yield(void){
     dccthread_t* current_thread = dccthread_self();
     dlist_push_right(ready_list, current_thread);
-    swapcontext(&manager,(current_thread->context));
+    swapcontext((current_thread->context),&manager);
 }
 
 const char * dccthread_name(dccthread_t *tid){
@@ -62,4 +72,35 @@ const char * dccthread_name(dccthread_t *tid){
 dccthread_t *dccthread_self(void){
     dccthread_t *nome = dlist_get_index(ready_list, 0);
     return nome;
+}
+
+void dccthread_exit(void){
+    dccthread_t* current_thread = dccthread_self();
+
+    for(int i = 0; i < ready_list->count; i++){
+        dccthread_t* listed_thread = dlist_get_index(ready_list, i);
+        if(listed_thread->waiting_for == current_thread){
+            listed_thread->waiting_for = NULL;
+        }
+    }
+    free(current_thread);
+    setcontext(&manager);
+}
+
+
+void dccthread_wait(dccthread_t *tid){
+    dccthread_t* current_thread = dccthread_self();
+    int tid_in_readylist = 0;
+    for(int i = 0; i < ready_list->count; i++){
+        dccthread_t* listed_thread = dlist_get_index(ready_list, i);
+        if(listed_thread->waiting_for == tid){
+            tid_in_readylist++;
+            break;
+        }
+    }
+    if (tid_in_readylist){
+        //dlist_pop_left(ready_list);
+        current_thread->waiting_for = tid;
+        swapcontext(&current_thread->context, &manager);
+    } 
 }
