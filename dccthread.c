@@ -32,7 +32,6 @@ void dccthread_init(void (func)(int), int param){
             dlist_pop_left(ready_list);
             dlist_push_right(ready_list, current_thread);
         }
-        dccthread_t* current_thread = (dccthread_t *) dlist_get_index(ready_list, 0);
         swapcontext(&manager,(current_thread->context));
         dlist_pop_left(ready_list);
         
@@ -103,6 +102,6 @@ void dccthread_wait(dccthread_t *tid){
     //if so, we classify the current thread as waiting for tid, and change the context back to the manager
     if (tid_in_readylist){
         current_thread->waiting_for = tid;
-        swapcontext(&current_thread->context, &manager);
+        swapcontext(current_thread->context, &manager);
     } 
 }
