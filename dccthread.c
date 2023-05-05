@@ -2,10 +2,17 @@
 #include <assert.h>
 #include <ucontext.h>
 #include <string.h>
+#include <time.h>
+#include <signal.h>
+#include <malloc.h>
 
 #include "dccthread.h"
 #include "dlist.h"
 
+#define TIMER_INTERVAL_SEC 0
+#define TIMER_INTERVAL_NSEC 10000000
+
+sigset_t mask;
 
 typedef struct dccthread{
     char name[DCCTHREAD_MAX_NAME_SIZE];
@@ -22,10 +29,35 @@ ucontext_t manager;
 // initializing both manager and main threads/
 void dccthread_init(void (func)(int), int param){
     ready_list = dlist_create();
-    dccthread_t* main_thread = dccthread_create("main", func, param);
+    dccthread_create("main", func, param);
     getcontext(&manager);
 
+    timer_t timerp;
+    struct sigaction sa;
+    struct sigevent se;
+    struct itimerspec ts;
 
+    se.sigev_signo = SIGRTMIN;
+    se.sigev_notify = SIGEV_SIGNAL;
+    se.sigev_notify_attributes = NULL;
+    se.sigev_value.sival_ptr = &timerp;
+    sa.sa_flags = 0;
+    sa.sa_handler = (void *)dccthread_yield;
+
+    ts.it_interval.tv_sec = TIMER_INTERVAL_SEC;
+    ts.it_interval.tv_nsec = TIMER_INTERVAL_NSEC;
+    ts.it_value.tv_sec = TIMER_INTERVAL_SEC;
+    ts.it_value.tv_nsec = TIMER_INTERVAL_NSEC;
+
+    sigaction(SIGRTMIN, &sa, NULL);
+
+    timer_create(CLOCK_PROCESS_CPUTIME_ID, &se, &timerp);
+    timer_settime(timerp, 0, &ts, NULL);
+
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGRTMIN);
+
+    sigprocmask(SIG_BLOCK, &mask, NULL);
     while(!dlist_empty(ready_list)){
         dccthread_t* current_thread = (dccthread_t *) dlist_get_index(ready_list, 0);
         if(current_thread->waiting_for != NULL){
@@ -50,19 +82,29 @@ dccthread_t * dccthread_create(const char *name, void (*func)(int ), int param){
     new_thread->waiting_for=NULL;
     new_thread->context = malloc(sizeof(ucontext_t));
     getcontext(new_thread->context);
+
+    sigprocmask(SIG_BLOCK, &mask, NULL);
+
     dlist_push_right(ready_list, new_thread);
     new_thread->context->uc_link = &manager;
-    new_thread->context->uc_stack.ss_sp = malloc(THREAD_STACK_SIZE);
-    new_thread->context->uc_stack.ss_size = THREAD_STACK_SIZE;
     new_thread->context->uc_stack.ss_flags = 0;
+    new_thread->context->uc_stack.ss_size = THREAD_STACK_SIZE;
+    new_thread->context->uc_stack.ss_sp = malloc(THREAD_STACK_SIZE);
     makecontext(new_thread->context, (void*) func, 1, param);
+    
+    sigprocmask(SIG_UNBLOCK, &mask, NULL);
+
     return new_thread;
 }
 
 void dccthread_yield(void){
+    sigprocmask(SIG_BLOCK, &mask, NULL);
+
     dccthread_t* current_thread = dccthread_self();
     dlist_push_right(ready_list, current_thread);
     swapcontext((current_thread->context),&manager);
+
+    sigprocmask(SIG_UNBLOCK, &mask, NULL);
 }
 
 const char * dccthread_name(dccthread_t *tid){
@@ -75,6 +117,8 @@ dccthread_t *dccthread_self(void){
 }
 
 void dccthread_exit(void){
+    sigprocmask(SIG_BLOCK, &mask, NULL);
+
     dccthread_t* current_thread = dccthread_self();
 
     for(int i = 0; i < ready_list->count; i++){
@@ -85,10 +129,15 @@ void dccthread_exit(void){
     }
     free(current_thread);
     setcontext(&manager);
+
+    sigprocmask(SIG_UNBLOCK, &mask, NULL);
 }
 
 
 void dccthread_wait(dccthread_t *tid){
+
+    sigprocmask(SIG_BLOCK, &mask, NULL);
+
     dccthread_t* current_thread = dccthread_self();
     int tid_in_readylist = 0;
     //verify if tid is an existing thread, which means, if it is in the ready list
@@ -104,4 +153,7 @@ void dccthread_wait(dccthread_t *tid){
         current_thread->waiting_for = tid;
         swapcontext(current_thread->context, &manager);
     } 
+
+    sigprocmask(SIG_UNBLOCK, &mask, NULL);
 }
+
