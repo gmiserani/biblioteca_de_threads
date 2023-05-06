@@ -29,6 +29,7 @@ ucontext_t manager;
 
 // initializing both manager and main threads/
 void dccthread_init(void (func)(int), int param){
+    sleeping_list = dlist_create();
     ready_list = dlist_create();
     dccthread_create("main", func, param);
     getcontext(&manager);
@@ -169,18 +170,11 @@ int cmp(const void *e1, const void *e2, void *userdata){
 
 // Função para ser chamada quando o timer de um thread dormindo expirar
 void dccthread_wakeup(int sig, siginfo_t *si, void *uc) {
-    sigprocmask(SIG_BLOCK, &mask, NULL);
 
-    // Percorre a lista de threads dormindo procurando por threads que já podem acordar
-    for (int i = 0; i < sleeping_list->count; i++) {
-        dccthread_t* thread = dlist_get_index(sleeping_list, i);
-        if (thread->sleeping) {
-            thread->sleeping = 0;
-            // Remove o thread da lista de threads dormindo e adiciona na lista de threads prontos
-            dlist_find_remove(sleeping_list, (dccthread_t *)si->si_value.sival_ptr, cmp, NULL);
-            dlist_push_right(ready_list, thread);
-        }
-    }
+    dccthread_t* thread = (dccthread_t *)si->si_value.sival_ptr;
+    thread->sleeping = 0;
+    dlist_find_remove(sleeping_list, thread, cmp, NULL);
+    dlist_push_right(ready_list, thread);
 }
 
 void dccthread_sleep(struct timespec ts){
@@ -195,15 +189,11 @@ void dccthread_sleep(struct timespec ts){
     struct sigevent se;
     struct itimerspec its;
 
-    for (int i = 0; i < sleeping_list->count; i++) {
-        dccthread_t* thread = dlist_get_index(sleeping_list, i);
-        if (thread == current_thread) {
-            dlist_push_right(sleeping_list, current_thread);
-        }
-    }
+    //dlist_push_right(ready_list, current_thread);
+      
 
     se.sigev_notify = SIGEV_SIGNAL;
-    se.sigev_signo = SIGRTMIN;
+    se.sigev_signo = SIGRTMAX;
     se.sigev_value.sival_ptr = current_thread;
     timer_create(CLOCK_REALTIME, &se, &timerp);
     its.it_value = ts;
@@ -214,10 +204,11 @@ void dccthread_sleep(struct timespec ts){
     sa.sa_mask = mask;
     sa.sa_flags = SA_SIGINFO;
     sa.sa_sigaction  = dccthread_wakeup;
-    se.sigev_notify_attributes = NULL;
-    sigaction(SIGRTMIN, &sa, NULL);
 
+    sigaction(SIGRTMAX, &sa, NULL);
+   
     dlist_push_right(ready_list, current_thread);
+    dlist_push_right(sleeping_list, current_thread);
  	swapcontext((current_thread->context), &manager);
 
     sigprocmask(SIG_UNBLOCK, &mask, NULL);
