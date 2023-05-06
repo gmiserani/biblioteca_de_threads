@@ -22,6 +22,7 @@ typedef struct dccthread{
     dccthread_t *waiting_for; //pointer to a thread that it is waiting to finish, NULL otherwise
 } dccthread_t;
 
+struct dlist *sleeping_list;
 struct dlist *ready_list;
 //putting manager as a global thread so it can be used during the whole process/
 ucontext_t manager;
@@ -80,6 +81,7 @@ dccthread_t * dccthread_create(const char *name, void (*func)(int ), int param){
     dccthread_t* new_thread = malloc(sizeof(dccthread_t));
     strcpy(new_thread->name, name);
     new_thread->waiting_for=NULL;
+    new_thread->sleeping = 0;
     new_thread->context = malloc(sizeof(ucontext_t));
     getcontext(new_thread->context);
 
@@ -112,8 +114,7 @@ const char * dccthread_name(dccthread_t *tid){
 }
 
 dccthread_t *dccthread_self(void){
-    dccthread_t *nome = dlist_get_index(ready_list, 0);
-    return nome;
+    return dlist_get_index(ready_list, 0); 
 }
 
 void dccthread_exit(void){
@@ -157,3 +158,67 @@ void dccthread_wait(dccthread_t *tid){
     sigprocmask(SIG_UNBLOCK, &mask, NULL);
 }
 
+void resume_thread_execution(int sig, siginfo_t *si, void *uc) {
+    dccthread_t* thread_to_resume = (dccthread_t *)si->si_value.sival_ptr;
+    dlist_push_right(ready_list, thread_to_resume);
+}
+
+int cmp(const void *e1, const void *e2, void *userdata){
+	return (dccthread_t *)e1 != (dccthread_t *)e2;
+}
+
+// Função para ser chamada quando o timer de um thread dormindo expirar
+void dccthread_wakeup(int sig, siginfo_t *si, void *uc) {
+    sigprocmask(SIG_BLOCK, &mask, NULL);
+
+    // Percorre a lista de threads dormindo procurando por threads que já podem acordar
+    for (int i = 0; i < sleeping_list->count; i++) {
+        dccthread_t* thread = dlist_get_index(sleeping_list, i);
+        if (thread->sleeping) {
+            thread->sleeping = 0;
+            // Remove o thread da lista de threads dormindo e adiciona na lista de threads prontos
+            dlist_find_remove(sleeping_list, (dccthread_t *)si->si_value.sival_ptr, cmp, NULL);
+            dlist_push_right(ready_list, thread);
+        }
+    }
+}
+
+void dccthread_sleep(struct timespec ts){
+
+    sigprocmask(SIG_BLOCK, &mask, NULL);
+
+    dccthread_t* current_thread = dccthread_self();
+    current_thread->sleeping = 1;
+
+    timer_t timerp;
+    struct sigaction sa;
+    struct sigevent se;
+    struct itimerspec its;
+
+    for (int i = 0; i < sleeping_list->count; i++) {
+        dccthread_t* thread = dlist_get_index(sleeping_list, i);
+        if (thread == current_thread) {
+            dlist_push_right(sleeping_list, current_thread);
+        }
+    }
+
+    se.sigev_notify = SIGEV_SIGNAL;
+    se.sigev_signo = SIGRTMIN;
+    se.sigev_value.sival_ptr = current_thread;
+    timer_create(CLOCK_REALTIME, &se, &timerp);
+    its.it_value = ts;
+    its.it_interval.tv_sec = 0;
+    its.it_interval.tv_nsec = 0;
+    timer_settime(timerp, 0, &its, NULL);
+
+    sa.sa_mask = mask;
+    sa.sa_flags = SA_SIGINFO;
+    sa.sa_sigaction  = dccthread_wakeup;
+    se.sigev_notify_attributes = NULL;
+    sigaction(SIGRTMIN, &sa, NULL);
+
+    dlist_push_right(ready_list, current_thread);
+ 	swapcontext((current_thread->context), &manager);
+
+    sigprocmask(SIG_UNBLOCK, &mask, NULL);
+}
