@@ -27,6 +27,19 @@ struct dlist *ready_list;
 //putting manager as a global thread so it can be used during the whole process/
 ucontext_t manager;
 
+void print_all_threads() {
+    printf("threads: %d, sleeping_threads: %d\n", ready_list->count, sleeping_list->count);
+    for (int i = 0; i < ready_list->count; i++) {
+        dccthread_t* thread = dlist_get_index(ready_list, i);
+        printf("thread %s\n", thread->name);
+    }
+    printf("__\n");
+    for (int i = 0; i < sleeping_list->count; i++) {
+        dccthread_t* thread = dlist_get_index(sleeping_list, i);
+        printf("sleeping thread %s\n", thread->name);
+    }
+}
+
 // initializing both manager and main threads/
 void dccthread_init(void (func)(int), int param){
     sleeping_list = dlist_create();
@@ -60,7 +73,7 @@ void dccthread_init(void (func)(int), int param){
     sigaddset(&mask, SIGRTMIN);
 
     sigprocmask(SIG_BLOCK, &mask, NULL);
-    while(!dlist_empty(ready_list)){
+    while(!dlist_empty(ready_list) || !dlist_empty(sleeping_list)){
         dccthread_t* current_thread = (dccthread_t *) dlist_get_index(ready_list, 0);
         if(current_thread->waiting_for != NULL){
             dlist_pop_left(ready_list);
@@ -72,6 +85,7 @@ void dccthread_init(void (func)(int), int param){
         if(current_thread->waiting_for != NULL){
             dlist_push_right(ready_list, current_thread);
         }
+        print_all_threads();
     }
     exit(0);
 }
@@ -129,6 +143,12 @@ void dccthread_exit(void){
             listed_thread->waiting_for = NULL;
         }
     }
+    for(int i = 0; i < sleeping_list->count; i++){
+        dccthread_t* listed_thread = dlist_get_index(sleeping_list, i);
+        if(listed_thread->waiting_for == current_thread){
+            listed_thread->waiting_for = NULL;
+        }
+    }
     free(current_thread);
     setcontext(&manager);
 
@@ -169,12 +189,18 @@ int cmp(const void *e1, const void *e2, void *userdata){
 }
 
 // Função para ser chamada quando o timer de um thread dormindo expirar
-void dccthread_wakeup(int sig, siginfo_t *si, void *uc) {
+//int sig, siginfo_t *si, void *uc
+void dccthread_wakeup() {
+    printf("wakeup ");
+    sigprocmask(SIG_BLOCK, &mask, NULL);
 
-    dccthread_t* thread = (dccthread_t *)si->si_value.sival_ptr;
-    thread->sleeping = 0;
-    dlist_find_remove(sleeping_list, thread, cmp, NULL);
-    dlist_push_right(ready_list, thread);
+    dccthread_t* sleeping1 = dlist_get_index(sleeping_list, 0);
+    //(dccthread_t *)si->si_value.sival_ptr;
+    sleeping1->sleeping = 0;
+    dlist_pop_left(sleeping_list);
+    dlist_push_right(ready_list, sleeping1);
+
+    sigprocmask(SIG_UNBLOCK, &mask, NULL);
 }
 
 void dccthread_sleep(struct timespec ts){
@@ -191,23 +217,22 @@ void dccthread_sleep(struct timespec ts){
 
     //dlist_push_right(ready_list, current_thread);
       
+    sa.sa_flags = SA_SIGINFO;
+    sa.sa_sigaction  = dccthread_wakeup;
+    sa.sa_mask = mask;
+    sigaction(SIGRTMAX, &sa, NULL);
 
     se.sigev_notify = SIGEV_SIGNAL;
     se.sigev_signo = SIGRTMAX;
     se.sigev_value.sival_ptr = current_thread;
     timer_create(CLOCK_REALTIME, &se, &timerp);
+
     its.it_value = ts;
     its.it_interval.tv_sec = 0;
     its.it_interval.tv_nsec = 0;
     timer_settime(timerp, 0, &its, NULL);
 
-    sa.sa_mask = mask;
-    sa.sa_flags = SA_SIGINFO;
-    sa.sa_sigaction  = dccthread_wakeup;
-
-    sigaction(SIGRTMAX, &sa, NULL);
    
-    dlist_push_right(ready_list, current_thread);
     dlist_push_right(sleeping_list, current_thread);
  	swapcontext((current_thread->context), &manager);
 
